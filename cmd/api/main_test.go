@@ -16,11 +16,25 @@ import (
 	mockRepo "github.com/viveksatasiya/todo-app/internal/infrastructure/mock"
 )
 
-func TestCreateToDo(t *testing.T) {
+func setupToDoServiceAndRouter() (*mux.Router, *mockRepo.ToDoRepository, *service.ToDoService) {
 	repo := &mockRepo.ToDoRepository{}
 	svc := service.NewToDoService(repo)
 	router := mux.NewRouter()
 	handler.RegisterHandlers(router, svc)
+
+	return router, repo, svc
+}
+
+func performRequest(router *mux.Router, method string, path string, body []byte) *httptest.ResponseRecorder {
+	req, _ := http.NewRequest(method, path, bytes.NewBuffer(body))
+	rr := httptest.NewRecorder()
+	router.ServeHTTP(rr, req)
+
+	return rr
+}
+
+func TestCreateToDo(t *testing.T) {
+	router, repo, _ := setupToDoServiceAndRouter()
 
 	todo := &domain.ToDo{Title: "Test task", Description: "Test task description"}
 
@@ -29,10 +43,8 @@ func TestCreateToDo(t *testing.T) {
 		return t.Title == todo.Title && t.Description == todo.Description
 	})).Return(nil)
 
-	todoJSON, _ := json.Marshal(todo)
-	req, _ := http.NewRequest("POST", "/todos", bytes.NewBuffer(todoJSON))
-	rr := httptest.NewRecorder()
-	router.ServeHTTP(rr, req)
+	reqBody, _ := json.Marshal(todo)
+	rr := performRequest(router, "POST", "/todos", reqBody)
 
 	if status := rr.Code; status != http.StatusCreated {
 		t.Errorf("handler returned wrong status code: got %v want %v", status, http.StatusCreated)
@@ -43,10 +55,7 @@ func TestCreateToDo(t *testing.T) {
 }
 
 func TestGetAllToDos(t *testing.T) {
-	repo := &mockRepo.ToDoRepository{}
-	svc := service.NewToDoService(repo)
-	router := mux.NewRouter()
-	handler.RegisterHandlers(router, svc)
+	router, repo, _ := setupToDoServiceAndRouter()
 
 	// Define the expected list of ToDos to be returned by the mock repository
 	expectedToDos := []domain.ToDo{
@@ -57,9 +66,7 @@ func TestGetAllToDos(t *testing.T) {
 	// Set up the expectation for the FindAll method
 	repo.On("FindAll").Return(expectedToDos, nil)
 
-	req, _ := http.NewRequest("GET", "/todos", nil)
-	rr := httptest.NewRecorder()
-	router.ServeHTTP(rr, req)
+	rr := performRequest(router, "GET", "/todos", nil)
 
 	if status := rr.Code; status != http.StatusOK {
 		t.Errorf("handler returned wrong status code: got %v want %v", status, http.StatusOK)
@@ -79,10 +86,7 @@ func TestGetAllToDos(t *testing.T) {
 }
 
 func TestGetToDoById(t *testing.T) {
-	repo := &mockRepo.ToDoRepository{}
-	svc := service.NewToDoService(repo)
-	router := mux.NewRouter()
-	handler.RegisterHandlers(router, svc)
+	router, repo, _ := setupToDoServiceAndRouter()
 
 	// Define the expected ToDo to be returned by the mock repository
 	expectedToDo := domain.ToDo{
@@ -94,9 +98,7 @@ func TestGetToDoById(t *testing.T) {
 	// Set up the expectation for the FindById method
 	repo.On("FindById", expectedToDo.ID).Return(&expectedToDo, nil)
 
-	req, _ := http.NewRequest("GET", "/todos/"+expectedToDo.ID, nil)
-	rr := httptest.NewRecorder()
-	router.ServeHTTP(rr, req)
+	rr := performRequest(router, "GET", "/todos/"+expectedToDo.ID, nil)
 
 	if status := rr.Code; status != http.StatusOK {
 		t.Errorf("handler returned wrong status code: got %v want %v", status, http.StatusOK)
@@ -116,10 +118,7 @@ func TestGetToDoById(t *testing.T) {
 }
 
 func TestUpdateToDo(t *testing.T) {
-	repo := &mockRepo.ToDoRepository{}
-	svc := service.NewToDoService(repo)
-	router := mux.NewRouter()
-	handler.RegisterHandlers(router, svc)
+	router, repo, _ := setupToDoServiceAndRouter()
 
 	// Define the expected updated ToDo
 	updatedToDo := domain.ToDo{
@@ -134,9 +133,7 @@ func TestUpdateToDo(t *testing.T) {
 	})).Return(nil)
 
 	reqBody, _ := json.Marshal(updatedToDo)
-	req, _ := http.NewRequest("PUT", "/todos/"+updatedToDo.ID, bytes.NewBuffer(reqBody))
-	rr := httptest.NewRecorder()
-	router.ServeHTTP(rr, req)
+	rr := performRequest(router, "PUT", "/todos/"+updatedToDo.ID, reqBody)
 
 	if status := rr.Code; status != http.StatusNoContent {
 		t.Errorf("handler returned wrong status code: got %v want %v", status, http.StatusNoContent)
@@ -147,10 +144,7 @@ func TestUpdateToDo(t *testing.T) {
 }
 
 func TestDeleteToDo(t *testing.T) {
-	repo := &mockRepo.ToDoRepository{}
-	svc := service.NewToDoService(repo)
-	router := mux.NewRouter()
-	handler.RegisterHandlers(router, svc)
+	router, repo, _ := setupToDoServiceAndRouter()
 
 	// Define the ID of the ToDo to be deleted
 	toDoID := "1"
@@ -158,9 +152,7 @@ func TestDeleteToDo(t *testing.T) {
 	// Set up the expectation for the Delete method
 	repo.On("Delete", toDoID).Return(nil)
 
-	req, _ := http.NewRequest("DELETE", "/todos/"+toDoID, nil)
-	rr := httptest.NewRecorder()
-	router.ServeHTTP(rr, req)
+	rr := performRequest(router, "DELETE", "/todos/"+toDoID, nil)
 
 	if status := rr.Code; status != http.StatusNoContent {
 		t.Errorf("handler returned wrong status code: got %v want %v", status, http.StatusNoContent)
