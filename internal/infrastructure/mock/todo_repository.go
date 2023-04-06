@@ -1,6 +1,8 @@
 package mock
 
 import (
+	"fmt"
+
 	"github.com/stretchr/testify/mock"
 	"github.com/viveksatasiya/todo-app/internal/domain"
 )
@@ -10,6 +12,7 @@ type ToDoRepository struct {
 }
 
 func (m *ToDoRepository) Create(todo *domain.ToDo) error {
+	fmt.Print("***********************************************")
 	args := m.Called(todo)
 	return args.Error(0)
 }
